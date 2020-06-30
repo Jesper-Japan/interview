@@ -6,7 +6,7 @@ import cats.Applicative
 import cats.syntax.applicative._
 import cats.syntax.either._
 import forex.config.ExchangeService
-import forex.domain.{Price, Rate, Timestamp}
+import forex.domain.{Currency, Price, Rate, Timestamp}
 import forex.services.rates.Algebra
 import forex.services.rates.errors._
 import play.api.libs.json.{Json, Reads}
@@ -21,7 +21,7 @@ class OneFrameInterpreter[F[_]: Applicative] (exchangeService: ExchangeService) 
     val deserialized = parsedJson.as[Seq[ExchangeResponseObject]]
     val responseObject = deserialized.head
     val timestamp = Timestamp(OffsetDateTime.parse(responseObject.time_stamp))
-    Rate(pair, Price(responseObject.price), timestamp).asRight[Error].pure[F]
+    Rate(Rate.Pair(from = Currency.fromString(responseObject.from), to = Currency.fromString(responseObject.to)), Price(responseObject.price), timestamp).asRight[Error].pure[F]
   }
 
   case class ExchangeResponseObject(
