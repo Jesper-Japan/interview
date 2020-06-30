@@ -57,4 +57,35 @@ class OneFramePerformanceTest {
     val compareResult = returnTimeLocalTimeZone.compareTo(nowMinus5.toZonedDateTime)
     assert(compareResult > 0)
   }
+
+  @Test
+  // Tests that the response is less than 5 minutes old 100 times
+  def multipleTimelinessTest() = {
+    val oneFrameInterpreter = testOneFrameInterpreterInit();
+    val requestPair = Rate.Pair(from = Currency.fromString("USD"), to = Currency.fromString("EUR"))
+    var fastCount = 0
+    for (i <- 1 to 100) {
+      val nowMinus5 = OffsetDateTime.now.minusMinutes(5)
+      val result = oneFrameInterpreter.get(requestPair)
+      val resultRate = result.right.get
+      val returnTime = resultRate.timestamp.value
+      val returnTimeLocalTimeZone = returnTime.atZoneSameInstant(OffsetDateTime.now.getOffset)
+      val compareResult = returnTimeLocalTimeZone.compareTo(nowMinus5.toZonedDateTime)
+      if(compareResult > 0) fastCount+=1
+    }
+    assert(fastCount == 100)
+  }
+
+  @Test
+  // Tests that the response is less than 5 minutes old 100 times
+  def thousandRepetitionsTest() = {
+    val oneFrameInterpreter = testOneFrameInterpreterInit();
+    val requestPair = Rate.Pair(from = Currency.fromString("USD"), to = Currency.fromString("EUR"))
+    var count = 0
+    for (i <- 1 to 1000) {
+      val result = oneFrameInterpreter.get(requestPair)
+      if(result.isRight) count+=1
+    }
+    assert(count == 1000)
+  }
 }
