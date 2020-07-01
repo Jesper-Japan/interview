@@ -8,10 +8,12 @@ object errors {
   object Error {
     final case class RateLookupFailed(msg: String) extends Error
     final case class CurrencyNotSupported() extends Error
+    final case class QuotaReached() extends Error
   }
 
   def toProgramError(error: RatesServiceError): Error = error match {
     case RatesServiceError.OneFrameLookupFailed(msg) => Error.RateLookupFailed(msg)
     case RatesServiceError.OneFrameCurrencyNotSupported() => Error.CurrencyNotSupported()
+    case RatesServiceError.OneFrameQuotaReached() => Error.QuotaReached()
   }
 }
