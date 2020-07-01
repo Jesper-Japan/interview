@@ -8,6 +8,7 @@ import cats.syntax.either._
 import forex.config.ExchangeService
 import forex.domain.{Currency, Price, Rate, Timestamp}
 import forex.services.rates.Algebra
+import forex.services.rates.errors.Error.OneFrameCurrencyNotSupported
 import forex.services.rates.errors._
 import play.api.libs.json.{Json, Reads}
 import scalaj.http.Http
@@ -15,6 +16,10 @@ import scalaj.http.Http
 class OneFrameInterpreter[F[_]: Applicative] (exchangeService: ExchangeService) extends Algebra[F] {
 
   override def get(pair: Rate.Pair): F[Error Either Rate] = {
+    if(pair.from == Currency.UNKNOWN || pair.to == Currency.UNKNOWN) {
+      val errorAsArray = Array[Error](OneFrameCurrencyNotSupported()) // The compiler wouldn't infér that OneFrameCurrencyNotSupported extends Error, so I had to pass it as an object in an array to get it to compile.
+      return errorAsArray.head.asLeft[Rate].pure[F]
+    }
     val url = exchangeService.protocol + "://" + exchangeService.host + ":" + exchangeService.port + "/" + exchangeService.service
     val result = Http(url).headers(Seq("token" -> exchangeService.token)).param(exchangeService.param, pair.from.toString() + pair.to.toString()).asString
     val parsedJson = Json.parse(result.body)
