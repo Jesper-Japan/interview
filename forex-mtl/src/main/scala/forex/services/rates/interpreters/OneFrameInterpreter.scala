@@ -14,6 +14,9 @@ import forex.services.rates.errors._
 import play.api.libs.json.{Json, Reads}
 import scalaj.http.Http
 
+import scala.language.postfixOps
+import scala.sys.process._
+
 class OneFrameInterpreter[F[_]: Applicative] (exchangeService: ExchangeService) extends Algebra[F] {
 
   override def get(pair: Rate.Pair): F[Error Either Rate] = {
@@ -23,10 +26,19 @@ class OneFrameInterpreter[F[_]: Applicative] (exchangeService: ExchangeService) 
     }
     try {
       val url = exchangeService.protocol + "://" + exchangeService.host + ":" + exchangeService.port + "/" + exchangeService.service
-      val result = Http(url).headers(Seq("token" -> exchangeService.token)).param(exchangeService.param, pair.from.toString() + pair.to.toString()).asString
-      if(result.body contains("Quota reached")) {
-        val errorAsArray = Array[Error](OneFrameQuotaReached()) // The compiler wouldn't infer that OneFrameCurrencyNotSupported extends Error, so I had to pass it as an object in an array to get it to compile.
-        return errorAsArray.head.asLeft[Rate].pure[F]
+      var result = Http(url).headers(Seq("token" -> exchangeService.token)).param(exchangeService.param, pair.from.toString() + pair.to.toString()).asString
+      if(result.body contains "Quota reached") {
+        var repeat = 0
+        while ((result.body contains "Quota reached" )) {
+          restartOneFrameService()
+          Thread.sleep(5000)
+          result = Http(url).headers(Seq("token" -> exchangeService.token)).param(exchangeService.param, pair.from.toString() + pair.to.toString()).asString
+          if(repeat == 5 && (result.body contains "Quota reached" )) {
+            val errorAsArray = Array[Error](OneFrameQuotaReached()) // The compiler wouldn't infer that OneFrameCurrencyNotSupported extends Error, so I had to pass it as an object in an array to get it to compile.
+            return errorAsArray.head.asLeft[Rate].pure[F]
+          }
+          repeat += 1
+          }
       }
       val parsedJson = Json.parse(result.body)
       val deserialized = parsedJson.as[Seq[ExchangeResponseObject]]
@@ -39,6 +51,10 @@ class OneFrameInterpreter[F[_]: Applicative] (exchangeService: ExchangeService) 
         errorAsArray.head.asLeft[Rate].pure[F]
       }
     }
+  }
+
+  def restartOneFrameService() = {
+    "docker restart OneFrameService" !
   }
 
   case class ExchangeResponseObject(

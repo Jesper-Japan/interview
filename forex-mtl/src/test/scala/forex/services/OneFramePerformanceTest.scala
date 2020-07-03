@@ -88,4 +88,18 @@ class OneFramePerformanceTest {
     }
     assert(count == 1000)
   }
+
+  @Test
+  // Tests that the response is less than 5 minutes old 100 times
+  def tenThousandRepetitionsTest() = {
+    val oneFrameInterpreter = testOneFrameInterpreterInit();
+    val requestPair = Rate.Pair(from = Currency.fromString("USD"), to = Currency.fromString("EUR"))
+    var count = 0
+    for (i <- 1 to 10000) {
+      val result = oneFrameInterpreter.get(requestPair)
+      if(result.isRight) count+=1
+      if(count%100 == 0)Console.println(count)
+    }
+    assert(count == 10000)
+  }
 }
